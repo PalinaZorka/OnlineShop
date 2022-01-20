@@ -3,21 +3,21 @@ from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.parsers import JSONParser
-from shop.models import Customer, Address
+from shop.models import Customer, Address, Category, Product
 from django.contrib.auth.models import User
-from rest_framework import generics
-from .serializers import UserAdminSerializer
+from rest_framework import generics, permissions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.authtoken.models import Token
+from .permissions import IsShopOwner
+from .serializers import UserAdminSerializer, AddressSerializer, CustomerSerializer, CategorySerializer
 
 
-class UserApiView(RetrieveAPIView):
-    permission_classes = (IsAuthenticated,)
-    serializer_class = UserAdminSerializer
-
-    def get_object(self):
-        return self.request.user
+# User
+class UserListView(generics.ListAPIView):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.IsAdminUser]
 
 
 @csrf_exempt
@@ -68,3 +68,36 @@ def login(request):
             except:
                 token = Token.objects.create(user=user)
             return JsonResponse({'token': str(token)}, status=200)
+
+
+class AddressList(generics.ListAPIView):
+    serializer_class = AddressSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        customer = Customer.objects.get(user=user)
+        return customer.address.all()
+
+
+# Product type
+class CategoryListView(generics.ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+class CategoryRetrieveView(generics.RetrieveAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+class CategoryRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAdminUser]
+
+
+class CategoryCreateView(generics.CreateAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [permissions.IsAdminUser, IsShopOwner]
